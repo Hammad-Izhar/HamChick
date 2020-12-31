@@ -1,1 +1,110 @@
-[["350107806302470145",{"username":"Hammy","id":"350107806302470145","highscore":2564.186,"scores":[2564.186],"startTime":"2020-12-28T19:39:38.467Z","endTime":null,"server":"341733234565971970"}],["455034008728764417",{"username":"bjoseph","id":"455034008728764417","highscore":9007199254740991,"scores":[],"startTime":null,"endTime":null,"server":"341733234565971970"}],["204043810844573696",{"username":"Rajan","id":"204043810844573696","highscore":3.675,"scores":[15.932,3.675,30.214,288.865,84.11,6.571],"startTime":"2020-12-28T19:49:56.906Z","endTime":null,"server":"341733234565971970"}],["500753530504871946",{"username":"sum02","id":"500753530504871946","highscore":9007199254740991,"scores":[],"startTime":null,"endTime":null,"server":"341733234565971970"}],["186107319967285249",{"username":"A.J.","id":"186107319967285249","highscore":9007199254740991,"scores":[],"startTime":null,"endTime":null,"server":"341733234565971970"}],["227135058979323904",{"username":"Ven","id":"227135058979323904","highscore":3218.294,"scores":[3218.294],"startTime":"2020-12-28T05:14:49.585Z","endTime":null,"server":"341733234565971970"}],["189943290085244928",{"username":"Erock","id":"189943290085244928","highscore":9007199254740991,"scores":[],"startTime":null,"endTime":null,"server":"341733234565971970"}],["290939958003499009",{"username":"Justin","id":"290939958003499009","highscore":9007199254740991,"scores":[],"startTime":null,"endTime":null,"server":"341733234565971970"}],["341771199988105217",{"username":"tim","id":"341771199988105217","highscore":9007199254740991,"scores":[],"startTime":null,"endTime":null,"server":"341733234565971970"}]]
+[
+    {
+      "username": "Hammy",
+      "id": "350107806302470145",
+      "highscore": 2.847,
+      "scores": [
+        2564.186,
+        3212.076,
+        2.847,
+        6648.726,
+        71.42
+      ],
+      "startTime": "2020-12-29T02:07:08.039Z",
+      "endTime": null,
+      "server": "341733234565971970"
+    },
+    {
+      "username": "bjoseph",
+      "id": "455034008728764417",
+      "highscore": 35.236,
+      "scores": [
+        35.236
+      ],
+      "startTime": "2020-12-29T02:51:42.561Z",
+      "endTime": null,
+      "server": "341733234565971970"
+    },
+    {
+      "username": "Rajan",
+      "id": "204043810844573696",
+      "highscore": 3.675,
+      "scores": [
+        15.932,
+        3.675,
+        30.214,
+        288.865,
+        84.11,
+        6.571,
+        5236.47
+      ],
+      "startTime": "2020-12-29T01:41:51.664Z",
+      "endTime": null,
+      "server": "341733234565971970"
+    },
+    {
+      "username": "sum02",
+      "id": "500753530504871946",
+      "highscore": 70.131,
+      "scores": [
+        773.253,
+        70.131,
+        3996.316
+      ],
+      "startTime": null,
+      "endTime": null,
+      "server": "341733234565971970"
+    },
+    {
+      "username": "A.J.",
+      "id": "186107319967285249",
+      "highscore": 9007199254740991,
+      "scores": [],
+      "startTime": null,
+      "endTime": null,
+      "server": "341733234565971970"
+    },
+    {
+      "username": "Ven",
+      "id": "227135058979323904",
+      "highscore": 3218.294,
+      "scores": [
+        3218.294,
+        56473.66
+      ],
+      "startTime": null,
+      "endTime": null,
+      "server": "341733234565971970"
+    },
+    {
+      "username": "Erock",
+      "id": "189943290085244928",
+      "highscore": 9007199254740991,
+      "scores": [],
+      "startTime": null,
+      "endTime": null,
+      "server": "341733234565971970"
+    },
+    {
+      "username": "Justin",
+      "id": "290939958003499009",
+      "highscore": 11208.729,
+      "scores": [
+        11208.729
+      ],
+      "startTime": "2020-12-29T02:14:32.318Z",
+      "endTime": null,
+      "server": "341733234565971970"
+    },
+    {
+      "username": "tim",
+      "id": "341771199988105217",
+      "highscore": 1745.103,
+      "scores": [
+        1745.103
+      ],
+      "startTime": "2020-12-28T23:47:54.708Z",
+      "endTime": null,
+      "server": "341733234565971970"
+    }
+]

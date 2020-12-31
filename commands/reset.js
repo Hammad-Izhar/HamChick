@@ -1,27 +1,44 @@
 const fs = require('fs');
 
 module.exports = {
-    name: `!reset`,
-    description: 'Resets a user\'s high score and scores!',
-    execute(message, args) {
-        let userID = args[0].replace(/[<>!@]/g, "");
+        name: `!reset`,
+        description: 'Resets a user\'s high score and scores!',
+        execute(message, args) {
+            if (args == []) args = [message.author.id];
+            let userID = args[0].replace(/[<>!@]/g, "");
 
-        let callTimes = fs.readFile('./assets/callTimes.json', (err, data) => {
-            if (err) console.error(err);
-            callTimes = new Map(JSON.parse(data));
+            const MongoClient = require('mongodb').MongoClient;
+            const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h1cxc.mongodb.net/HamChick?retryWrites=true&w=majority`;
+            const client = new MongoClient(uri, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true
+            });
 
-            let userObj = callTimes.get(userID);
-
-            if (!userObj) {
-                message.channel.send("That user isn't being monitored! ❌")
-            } else if (!isNaN(userID)) {
-                userObj.highscore = 9007199254740991;
-                userObj.scores = [];
-                userObj.startTime = null;
-                userObj.endTime = null;
-                fs.writeFile("./assets/callTimes.json", JSON.stringify([...callTimes]), err => console.error(err));
-                message.channel.send('Succesfully reset the user! 👁👁');
+            client.connect(err => {
+                if (err) console.error(err);
+                const callTimes = client.db("HamChick").collection("callTimes");
+                let userObj = callTimes.findOne({
+                        'id': userID
+                    })
+                    .then(docs => {
+                        if (!docs) message.channel.send("That user isn't being monitored! ❌");
+                        else {
+                            update = {
+                                $set: {
+                                    highscore: 9007199254740991,
+                                    scores: [],
+                                    startTime: null,
+                                    endTime: null
+                                }
+                            }
+                            callTimes.updateOne({
+                                'id': userID
+                            }, update, (err) => {
+                                if (err) console.error(err);
+                                db.close();
+                            });
+                        }
+                    }).catch(err => console.error(err));
+            }).catch(err => console.error(err));
             }
-        });
-    }
-}
+        }
