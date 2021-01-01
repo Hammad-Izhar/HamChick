@@ -1,11 +1,37 @@
-const fs = require('fs');
+async function monitor(client, userID, serverID, message) {
+    return await client.connect(async () => {
+        guild = message.channel.guild;
+        const callTimes = client.db("HamChick").collection("callTimes");
+
+        userObj = await callTimes.findOne({
+            "id": userID
+        }).catch((err) => console.error(err));
+
+        if (userObj) {
+            message.channel.send('That user is already being monitored! (👁_👁)');
+        } else if (guild.member(userID)) {
+            await callTimes.insertOne({
+                username: message.channel.guild.members.cache.get(userID).user.username,
+                id: userID,
+                highscore: null,
+                lowscore: 2147483647,
+                scores: [],
+                startTime: null,
+                endTime: null,
+                server: serverID
+            }).catch((err) => console.error(err));
+
+            message.channel.send('Sucessfully began monitering user! (👁_👁)')
+        }
+    });
+}
 
 module.exports = {
     name: `!monitor`,
     description: 'Adds a user to be monitored',
     execute(message, args) {
-        if (args == []) args = [message.author.id];
-        let userID = args[0].replace(/[<>!@]/g, "");
+        argument = args[0] ? args[0] : message.author.id;
+        let userID = argument.replace(/[<>!@]/g, "");
         let serverID = message.channel.guild.id
 
         const MongoClient = require('mongodb').MongoClient;
@@ -14,29 +40,6 @@ module.exports = {
             useNewUrlParser: true,
             useUnifiedTopology: true
         });
-
-        client.connect(err => {
-            if (err) console.error(err);
-            const callTimes = client.db("HamChick").collection("callTimes");
-            let userObj = callTimes.findOne({"id": userID})
-                .then(doc => {
-                    if (doc) {
-                        console.log(doc);
-                        message.channel.send('That user is already being monitored! (👁_👁)');
-                    } else if (!isNaN(userID)) {
-                        console.log(doc);
-                        callTimes.insertOne({
-                            username: message.channel.guild.members.cache.get(userID).user.username,
-                            id: userID,
-                            highscore: 9007199254740991,
-                            scores: [],
-                            startTime: null,
-                            endTime: null,
-                            server: serverID
-                        }).catch(err => console.error(err));
-                        message.channel.send('Sucessfully began monitering user! (👁_👁)')
-                    }
-                }).catch(err => console.error(err));
-        });
+        monitor(client, userID, serverID, message).then(client.close()).catch((err) => console.error(err));
     }
 };
