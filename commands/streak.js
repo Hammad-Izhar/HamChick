@@ -7,7 +7,7 @@ async function streak(type, userID, client, message) {
                 'id': userID
             });
             if (type == 'gn') {
-                message.channel.send(`<@${userID}> is on a ${userObj.gnStreak}-day streak! 🌕`)
+                message.channel.send(`<@${userID}> is on a ${userObj.gnStreak}-night streak! 🌙`)
             } else if (type == 'supsup') {
                 message.channel.send(`<@${userID}> is on a ${userObj.gmStreak}-day streak! 🌞`);
             }

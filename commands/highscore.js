@@ -34,7 +34,7 @@ module.exports = {
         let userID = args[1] ? args[1].replace(/[<>@!]/g, "") : message.author.id;
         console.log(userID);
         if (!((/call/i).test(args[0])) && !((/gn/i).test(args[0])) && !((/supsup/i).test(args[0]))) {
-            message.channel.send("That's not a valid streak name! You must say either 'call', 'gn', or'supsup'.");
+            message.channel.send("That's not a valid argument! You must say either 'call', 'gn', or'supsup'.");
             return
         }
         let highscoreType = args[0].toLowerCase();
@@ -46,6 +46,6 @@ module.exports = {
             useUnifiedTopology: true
         });
 
-        highscore(highscoreType, client, userID, message)
+        highscore(highscoreType, client, userID, message);
     }
 }

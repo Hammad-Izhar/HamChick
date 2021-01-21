@@ -3,7 +3,6 @@ const fs = require('fs');
 const Discord = require('discord.js');
 const fetch = require('node-fetch');
 require('dotenv').config();
-const monitor = require('./commands/monitor');
 const DiscordClient = new Discord.Client();
 
 DiscordClient.commands = new Discord.Collection();
@@ -72,7 +71,7 @@ DiscordClient.on('message', msg => {
                         if (userObj.gnHighscore < userObj.gnStreak) {
                             userObj.gnHighscore = userObj.gnStreak;
                         }
-                        message.channel.send('Good Night! First time! Keep up the good work! 🌙')
+                        message.channel.send(`Good night <@${userObj.id}>! First time! Keep up the good work! 🌙`)
                     } else if (userObj.gnTime && (now.getTime() - (new Date(userObj.gnTime)).getTime()) >= 72000000 && now.getDate() == (new Date(userObj.gnTime)).getDate() + 1) {
                         console.log('Streaking!');
                         userObj.gnTime = new Date();
@@ -81,9 +80,9 @@ DiscordClient.on('message', msg => {
                             userObj.gnHighscore = userObj.gnStreak;
                         }
                         if (userObj.gnStreak % 5 == 0) {
-                            message.channel.send(`Good night! ${message.author} is on a ${userObj.gnStreak} night streak! 🌕`);
+                            message.channel.send(`Good night! <@${userObj.id}> is on a ${userObj.gnStreak} night streak! 🌕`);
                         } else {
-                            message.channel.send(`Good night ${message.author}!`)
+                            message.channel.send(`Good night <@${userObj.id}>!`)
                         }
                     } else if ((86400000 + ((new Date(userObj.gnTime)).getTime() - now.getTime())) > 0) {
                         console.log('Too early!')
@@ -139,7 +138,7 @@ DiscordClient.on('message', msg => {
                         if (userObj.gmHighscore < userObj.gmStreak) {
                             userObj.gmHighscore = userObj.gmStreak;
                         }
-                        message.channel.send('Good morning! First time! Keep up the good work! 🌞')
+                        message.channel.send(`Good morning <@${userObj.id}>! First time! Keep up the good work! 🌞`)
                     } else if (userObj.gmTime && (now.getTime() - (new Date(userObj.gmTime))) >= 72000000 && now.getDate() == (new Date(userObj.gmTime)).getDate() + 1) {
                         console.log('Streaking!');
                         userObj.gmTime = new Date();
@@ -148,9 +147,9 @@ DiscordClient.on('message', msg => {
                             userObj.gmHighscore = userObj.gmStreak;
                         }
                         if (userObj.gmStreak % 5 == 0) {
-                            message.channel.send(`Good Morning! ${message.author} is on a ${userObj.gmStreak} night streak! ☀`);
+                            message.channel.send(`Good Morning! <@${userObj.id}> is on a ${userObj.gmStreak} day streak! ☀`);
                         } else {
-                            message.channel.send(`Good morning ${message.author}!`)
+                            message.channel.send(`Good morning <@${userObj.id}>!`)
                         }
                     } else if ((86400000 + ((new Date(userObj.gmTime)).getTime() - now.getTime())) > 0) {
                         console.log('Too early!')
