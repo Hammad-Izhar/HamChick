@@ -18,7 +18,13 @@ async function monitor(client, userID, serverID, message) {
                 scores: [],
                 startTime: null,
                 endTime: null,
-                server: serverID
+                server: serverID,
+                gnStreak: 0,
+                gnTime: null,
+                gmStreak: 0,
+                gmTime: null,
+                gnHighscore: 0,
+                gmHighscore: 0
             }).catch((err) => console.error(err));
 
             message.channel.send('Sucessfully began monitering user! (👁_👁)')

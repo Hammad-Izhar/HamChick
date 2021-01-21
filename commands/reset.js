@@ -16,7 +16,13 @@ async function reset(client, userID, message) {
                     lowscore: 2147483647,
                     scores: [],
                     startTime: null,
-                    endTime: null
+                    endTime: null,
+                    gnStreak: 0,
+                    gnTime: null,
+                    gmStreak: 0,
+                    gmTime: null,
+                    gnHighscore: 0,
+                    gmHighscore: 0
                 }
             }
             await callTimes.updateOne(query, update).catch((err) => console.error(err));

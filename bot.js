@@ -1,5 +1,3 @@
-// TODO: !top, Wordnik ciphers
-
 //Discord Setup
 const fs = require('fs');
 const Discord = require('discord.js');
@@ -53,6 +51,173 @@ DiscordClient.on('message', msg => {
         gif();
     };
 
+    async function nightStreak(client, message) {
+        return await client.connect(async () => {
+            try {
+                const userID = message.author.id;
+                const callTimes = client.db("HamChick").collection("callTimes");
+
+                let userObj = await callTimes.findOne({
+                    "id": userID
+                }).catch(err => console.error(err));
+
+                now = new Date();
+
+                if (now.getHours() <= 23) {
+                    if (userObj.gnTime == null) {
+                        console.log('First Time!');
+                        userObj.gnTime = new Date();
+                        userObj.gnStreak = 1;
+                        console.log(userObj.gnStreak);
+                        if (userObj.gnHighscore < userObj.gnStreak) {
+                            userObj.gnHighscore = userObj.gnStreak;
+                        }
+                        message.channel.send('Good Night! First time! Keep up the good work! 🌙')
+                    } else if (userObj.gnTime && (now.getTime() - (new Date(userObj.gnTime)).getTime()) >= 72000000 && now.getDate() == (new Date(userObj.gnTime)).getDate() + 1) {
+                        console.log('Streaking!');
+                        userObj.gnTime = new Date();
+                        userObj.gnStreak += 1;
+                        if (userObj.gnHighscore < userObj.gnStreak) {
+                            userObj.gnHighscore = userObj.gnStreak;
+                        }
+                        if (userObj.gnStreak % 5 == 0) {
+                            message.channel.send(`Good night! ${message.author} is on a ${userObj.gnStreak} night streak! 🌕`);
+                        } else {
+                            message.channel.send(`Good night ${message.author}!`)
+                        }
+                    } else if ((86400000 + ((new Date(userObj.gnTime)).getTime() - now.getTime())) > 0) {
+                        console.log('Too early!')
+                        let time = (72000000 + ((new Date(userObj.gnTime)).getTime() - now.getTime())) / 1000;
+                        let s = ""
+                        if (time > 3600) {
+                            s = `${(time/3600).toFixed(2)} hours`;
+                        } else if (time > 60) {
+                            s = `${(time/60).toFixed(2)} minutes`;
+                        } else {
+                            s = `${(time)} seconds`
+                        }
+                        message.channel.send(`I'm sorry! You have to wait ${s} to say gn!`)
+                    } else if (now.getDate() > (new Date(userObj.gnTime)).getDate() + 1) {
+                        console.log('Too late!');
+                        userObj.gnTime == new Date();
+                        userObj.gnStreak = 1;
+                        message.channel.send('Damn it! You lost your streak! Try again! 🌑')
+                    }
+                } else {
+                    message.channel.send(`It's too damn early to say good night! Try again a little later!`);
+                }
+                let update = {
+                    $set: userObj
+                };
+
+                await callTimes.updateOne({
+                    "id": userID
+                }, update).catch(err => console.error(err));
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    }
+
+    async function morningStreak(client, message) {
+        return await client.connect(async () => {
+            try {
+                const userID = message.author.id;
+                const callTimes = client.db("HamChick").collection("callTimes");
+
+                let userObj = await callTimes.findOne({
+                    "id": userID
+                }).catch(err => console.error(err));
+
+                now = new Date();
+
+                if (now.getHours() >= 6 && now.getHours() <= 12) {
+                    if (userObj.gmTime == null) {
+                        console.log('First Time!');
+                        userObj.gmTime = new Date();
+                        userObj.gmStreak += 1;
+                        if (userObj.gmHighscore < userObj.gmStreak) {
+                            userObj.gmHighscore = userObj.gmStreak;
+                        }
+                        message.channel.send('Good morning! First time! Keep up the good work! 🌞')
+                    } else if (userObj.gmTime && (now.getTime() - (new Date(userObj.gmTime))) >= 72000000 && now.getDate() == (new Date(userObj.gmTime)).getDate() + 1) {
+                        console.log('Streaking!');
+                        userObj.gmTime = new Date();
+                        userObj.gmStreak += 1;
+                        if (userObj.gmHighscore < userObj.gmStreak) {
+                            userObj.gmHighscore = userObj.gmStreak;
+                        }
+                        if (userObj.gmStreak % 5 == 0) {
+                            message.channel.send(`Good Morning! ${message.author} is on a ${userObj.gmStreak} night streak! ☀`);
+                        } else {
+                            message.channel.send(`Good morning ${message.author}!`)
+                        }
+                    } else if ((86400000 + ((new Date(userObj.gmTime)).getTime() - now.getTime())) > 0) {
+                        console.log('Too early!')
+                        let time = (72000000 + ((new Date(userObj.gmTime)).getTime() - now.getTime())) / 1000;
+                        let s = ""
+                        if (time > 3600) {
+                            s = `${(time/3600).toFixed(2)} hours`;
+                        } else if (time > 60) {
+                            s = `${(time/60).toFixed(2)} minutes`;
+                        } else {
+                            s = `${(time)} seconds`
+                        }
+                        message.channel.send(`I'm sorry! You have to wait ${s} to say gm!`)
+                    } else if (now.getDate() > (new Date(userObj.gmTime)).getDate() + 1) {
+                        console.log('Too late!');
+                        userObj.gmTime = new Date();
+                        userObj.gmStreak = 1;
+                        message.channel.send('Damn it! You lost your streak! You are back to square 1! 🌥')
+                    }
+                } else {
+                    message.channel.send(`It's too late to say good morning! Try again a little earlier!`);
+                }
+                let update = {
+                    $set: userObj
+                };
+
+                await callTimes.updateOne({
+                    "id": userID
+                }, update).catch(err => console.error(err));
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    }
+
+
+    let gn = /\b\W*gns\W*\b/i;
+    let supsup = /\b\W*supsups\W*\b/i;
+    let sup_sup = /\b\W*sup sups\W*\b/i;
+
+    if (gn.test(msg.content)) {
+        console.log("Someone said gn!");
+
+        const MongoClient = require('mongodb').MongoClient;
+        const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h1cxc.mongodb.net/HamChick?retryWrites=true&w=majority`;
+        const client = new MongoClient(uri, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        });
+
+        nightStreak(client, msg).catch(err => console.error(err));
+    }
+
+    if (supsup.test(msg.content) || sup_sup.test(msg.content)) {
+        console.log("Someone said supsup!");
+
+        const MongoClient = require('mongodb').MongoClient;
+        const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h1cxc.mongodb.net/HamChick?retryWrites=true&w=majority`;
+        const client = new MongoClient(uri, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        });
+
+        morningStreak(client, msg).catch(err => console.error(err));
+    }
+
+
     if (!DiscordClient.commands.has(cmd)) return;
 
     try {
@@ -62,7 +227,6 @@ DiscordClient.on('message', msg => {
         msg.reply('Great! You broke me 😢. Try again later!')
     }
 });
-
 
 DiscordClient.on('voiceStateUpdate', (oldState, newState) => {
     console.log('Got a voice update!')
@@ -104,11 +268,11 @@ DiscordClient.on('voiceStateUpdate', (oldState, newState) => {
                 endTime = new Date(userObj.endTime);
                 let time = (endTime.getTime() - startTime.getTime()) / 1000;
                 if (time > 3600) {
-                    s = `${userObj.username} was in a voice channel for ${(time/3600).toFixed(2)} hours!`
+                    s = `<@${userObj.id}> was in a voice channel for ${(time/3600).toFixed(2)} hours!`
                 } else if (time > 60) {
-                    s = `${userObj.username} was in a voice channel for ${(time/60).toFixed(2)} minutes!`
+                    s = `<@${userObj.id}> was in a voice channel for ${(time/60).toFixed(2)} minutes!`
                 } else {
-                    s = `${userObj.username} was in a voice channel for ${time} seconds!`
+                    s = `<@${userObj.id}> was in a voice channel for ${time} seconds!`
                 }
                 userObj.startTime = null;
                 userObj.endTime = null;
@@ -165,9 +329,9 @@ DiscordClient.on('voiceStateUpdate', (oldState, newState) => {
     client.close();
 });
 
-const http = require('http');
-const server = http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end('Online');
-});
-server.listen(3000);
+// const http = require('http');
+// const server = http.createServer((req, res) => {
+//     res.writeHead(200);
+//     res.end('Online');
+// });
+// server.listen(3000);
