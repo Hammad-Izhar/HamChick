@@ -63,7 +63,7 @@ DiscordClient.on('message', msg => {
 
                 now = new Date();
 
-                if (now.getHours() <= 23) {
+                if (now.getHours() >= 2 && now.getHours() <= 4) {
                     if (userObj.gnTime == null) {
                         console.log('First Time!');
                         userObj.gnTime = new Date();
@@ -131,7 +131,7 @@ DiscordClient.on('message', msg => {
 
                 now = new Date();
 
-                if (now.getHours() >= 6 && now.getHours() <= 12) {
+                if (now.getHours() >= 11 && now.getHours() <= 17) {
                     if (userObj.gmTime == null) {
                         console.log('First Time!');
                         userObj.gmTime = new Date();
