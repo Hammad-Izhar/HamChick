@@ -51,6 +51,8 @@ DiscordClient.on('message', msg => {
     };
 
     async function nightStreak(client, message) {
+        month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        if ((new Date()).getFullYear() % 4 == 0) month[2] += 1;
         return await client.connect(async () => {
             try {
                 const userID = message.author.id;
@@ -72,7 +74,7 @@ DiscordClient.on('message', msg => {
                             userObj.gnHighscore = userObj.gnStreak;
                         }
                         message.channel.send(`Good night <@${userObj.id}>! First time! Keep up the good work! 🌙`)
-                    } else if (userObj.gnTime && (now.getTime() - (new Date(userObj.gnTime)).getTime()) >= 72000000 && now.getDate() == (new Date(userObj.gnTime)).getDate() + 1) {
+                    } else if (userObj.gnTime && (now.getTime() - (new Date(userObj.gnTime)).getTime()) >= 72000000 && now.getDate() == ((new Date(userObj.gnTime)).getDate() + 1) % month[(new Date(userObj.gnTime)).getMonth()]) {
                         console.log('Streaking!');
                         userObj.gnTime = new Date();
                         userObj.gnStreak += 1;
@@ -119,6 +121,8 @@ DiscordClient.on('message', msg => {
     }
 
     async function morningStreak(client, message) {
+        month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        if ((new Date()).getFullYear() % 4 == 0) month[2] += 1;
         return await client.connect(async () => {
             try {
                 const userID = message.author.id;
@@ -139,7 +143,7 @@ DiscordClient.on('message', msg => {
                             userObj.gmHighscore = userObj.gmStreak;
                         }
                         message.channel.send(`Good morning <@${userObj.id}>! First time! Keep up the good work! 🌞`)
-                    } else if (userObj.gmTime && (now.getTime() - (new Date(userObj.gmTime))) >= 72000000 && now.getDate() == (new Date(userObj.gmTime)).getDate() + 1) {
+                    } else if (userObj.gmTime && (now.getTime() - (new Date(userObj.gmTime))) >= 72000000 && now.getDate() == ((new Date(userObj.gmTime)).getDate() + 1) % month[(new Date(userObj.gnTime)).getMonth()]) {
                         console.log('Streaking!');
                         userObj.gmTime = new Date();
                         userObj.gmStreak += 1;
