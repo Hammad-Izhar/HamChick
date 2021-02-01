@@ -143,7 +143,7 @@ DiscordClient.on('message', msg => {
                             userObj.gmHighscore = userObj.gmStreak;
                         }
                         message.channel.send(`Good morning <@${userObj.id}>! First time! Keep up the good work! 🌞`)
-                    } else if (userObj.gmTime && (now.getTime() - (new Date(userObj.gmTime))) >= 72000000 && now.getDate() == ((new Date(userObj.gmTime)).getDate() + 1) % month[(new Date(userObj.gnTime)).getMonth()]) {
+                    } else if (userObj.gmTime && (now.getTime() - (new Date(userObj.gmTime)).getTime()) >= 72000000 && now.getDate() == ((new Date(userObj.gmTime)).getDate() + 1) % month[(new Date(userObj.gmTime)).getMonth()]) {
                         console.log('Streaking!');
                         userObj.gmTime = new Date();
                         userObj.gmStreak += 1;
@@ -332,9 +332,9 @@ DiscordClient.on('voiceStateUpdate', (oldState, newState) => {
     client.close();
 });
 
-// const http = require('http');
-// const server = http.createServer((req, res) => {
-//     res.writeHead(200);
-//     res.end('Online');
-// });
-// server.listen(3000);
+const http = require('http');
+const server = http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end('Online');
+});
+server.listen(3000);
