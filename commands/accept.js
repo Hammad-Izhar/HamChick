@@ -41,7 +41,7 @@ module.exports = {
         if (!args[0]) {
             message.channel.send("...")
         }
-        let userID = args[0].replace(/!<>@/, "");
+        let userID = args[0].replace(/[!<>@]/, "");
         const MongoClient = require('mongodb').MongoClient;
         const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h1cxc.mongodb.net/HamChick?retryWrites=true&w=majority`;
         const client = new MongoClient(uri, {

@@ -25,7 +25,7 @@ module.exports = {
     name: "!propose",
     description: "Valentine's Special",
     execute(message, args) {
-        if (!args[0] || args[0].replace(/!<>@/, "") == String(message.author.id)) {
+        if (!args[0] || args[0].replace(/[!<>@]/, "") == String(message.author.id)) {
             message.channel.send("Sorry! I don't want to wingman for your right hand.")
         }
         let userID = args[0].replace(/!<>@/, "");
