@@ -22,7 +22,9 @@ async function reset(client, userID, message) {
                     gmStreak: 0,
                     gmTime: null,
                     gnHighscore: 0,
-                    gmHighscore: 0
+                    gmHighscore: 0,
+                    valentine: null,
+                    pending_valentine: null
                 }
             }
             await callTimes.updateOne(query, update).catch((err) => console.error(err));
