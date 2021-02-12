@@ -36,7 +36,7 @@ module.exports = {
     name: "!divorce",
     description: "Valentine's Special",
     execute(message, args) {
-        if (!args[0] || args[0].replace(/[!<>@]/, "") == String(message.author.id)) {
+        if (!args[0] || args[0].replace(/[!<>@]/g, "") == String(message.author.id)) {
             message.channel.send("Yeah, don't know what you were expecting trying to divorce yourself.")
         }
         let userID = args[0].replace(/!<>@/, "");
