@@ -100,7 +100,7 @@ DiscordClient.on('message', msg => {
                         message.channel.send(`I'm sorry! You have to wait ${s} to say gn!`)
                     } else if (now.getDate() > (new Date(userObj.gnTime)).getDate() + 1) {
                         console.log('Too late!');
-                        userObj.gnTime == new Date();
+                        userObj.gnTime = new Date();
                         userObj.gnStreak = 1;
                         message.channel.send('Damn it! You lost your streak! Try again! 🌑')
                     }
