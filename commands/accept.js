@@ -1,3 +1,5 @@
+//comment
+
 async function accept(client, userID, message) {
     return await client.connect(async () => {
         const callTimes = client.db("HamChick").collection("callTimes");
