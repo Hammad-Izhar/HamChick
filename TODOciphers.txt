@@ -1,8 +1,0 @@
-Caesar
-Aristocrat
-Patristocrat
-Vignere
-Hill
-Bavonian
-Morbit
-Pollux
