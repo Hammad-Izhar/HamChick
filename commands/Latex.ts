@@ -1,5 +1,5 @@
 import { CommandInteraction } from "discord.js";
-import { Discord, SimpleCommand, SimpleCommandMessage, SimpleCommandOption, Slash, SlashOption } from "discordx";
+import { Discord, Slash, SlashOption } from "discordx";
 
 @Discord()
 export abstract class Latex {
