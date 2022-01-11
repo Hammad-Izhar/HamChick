@@ -72,7 +72,7 @@ export abstract class Guess {
             .map(x => x === target ? `**${x}**` : x);
         response = await response.edit(
             `Guesses: ${currentGuesses.toString().replaceAll(",", ", ")}\n` +
-            `You got it in ${guesses.length} ${guesses.length == 1 ? "try" : "tries"} :partying_face:!`);
+            `You got it in ${guesses.length} ${guesses.length === 1 ? "try" : "tries"} :partying_face:!`);
         await guessMessage.delete();
         return { ...currGame, terminated: true };
     }
@@ -95,6 +95,7 @@ export abstract class Guess {
             return await this.userTimedOut(currGame);
         }
         let { guesses, target } = currGame;
+
         let guess = parseInt(guessMessage.content);
         if (guess > 100 || guess < 1) {
             return await this.guessOutOfBounds(currGame, guessMessage);
