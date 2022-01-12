@@ -1,16 +1,21 @@
-import { assert } from "console";
 import { ButtonInteraction, CommandInteraction, Interaction, MessageActionRow, MessageButton, MessageComponentInteraction, User } from "discord.js";
 import { Discord, Slash, SlashOption } from "discordx";
 
 type Suits = "♠" | "♣" | "♥" | "♦"
 type Value = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K" | "A"
 type Card = `\`${Value}${Suits}\`` | "`??`"
+
 type BlackjackGame = {
     bet: number,
     dealerHand: Card[],
     playerHand: Card[],
     player: User,
 
+}
+
+type ButtonOptions = {
+    isDoubleDownable: boolean,
+    isSplitable: boolean
 }
 
 enum WinningPlayer {
@@ -28,25 +33,38 @@ export abstract class Blackjack {
         return `\`${vals[Math.floor(Math.random() * vals.length)]}${suits[Math.floor(Math.random() * suits.length)]}\``;
     }
 
+    private faceValue(x: Value, aceValue: 1 | 11): number {
+        if (x === "J" || x === "Q" || x === "K") {
+            return 10;
+        } else if (x === "A") {
+            return aceValue;
+        } else {
+            return parseInt(x);
+        }
+    }
+
     private getValue(hand: Card[]): number[] {
-        const faceValue = (x: Value, aceValue: 1 | 11) => {
-            if (x === "J" || x === "Q" || x === "K") {
-                return 10;
-            } else if (x === "A") {
-                return aceValue;
-            } else {
-                return parseInt(x);
-            }
-        };
 
         const cleanedHand = hand
             .filter(x => x !== "`??`")
             .map(x => x.replaceAll("`", ""))
             .map(x => x.replaceAll(/[♠♣♦♥]/g, "") as Value);
         return [
-            cleanedHand.map(x => faceValue(x, 1)).reduce((x, y) => x + y, 0),
-            cleanedHand.map(x => faceValue(x, 11)).reduce((x, y) => x + y, 0)
+            cleanedHand.map(x => this.faceValue(x, 1)).reduce((x, y) => x + y, 0),
+            cleanedHand.map(x => this.faceValue(x, 11)).reduce((x, y) => x + y, 0)
         ];
+    }
+
+    private checkDoubleDownable(hand: number[]): boolean {
+        return (hand[0] >= 9) && (hand[0] <= 11);
+    }
+
+    private checkSplittable(hand: Card[]): boolean {
+        const cleanedHand = hand
+            .filter(x => x !== "`??`")
+            .map(x => x.replaceAll("`", ""))
+            .map(x => x.replaceAll(/[♠♣♦♥]/g, "") as Value);
+        return this.faceValue(cleanedHand[0], 1) == this.faceValue(cleanedHand[1], 1);
     }
 
     private createScoreString(score: number[]): string {
@@ -76,18 +94,68 @@ export abstract class Blackjack {
         }
     }
 
-    private createButtons(ctx: Interaction): MessageActionRow {
-        const hitButton = new MessageButton()
+    private createButtons(options: ButtonOptions): MessageActionRow {
+        const { isDoubleDownable, isSplitable } = options;
+        const hit = new MessageButton()
             .setLabel("Hit")
             .setEmoji("👏")
             .setStyle("DANGER")
             .setCustomId("hit-btn");
-        const stayButton = new MessageButton()
+        const stay = new MessageButton()
             .setLabel("Stay")
             .setEmoji("🤚")
             .setStyle("PRIMARY")
             .setCustomId("stay-btn");
-        return new MessageActionRow().addComponents(hitButton, stayButton);
+        const doubledown = new MessageButton()
+            .setLabel("Double Down")
+            .setEmoji("⏬")
+            .setStyle("SECONDARY")
+            .setDisabled(true)
+            .setCustomId("double-down-btn");
+        const split = new MessageButton()
+            .setLabel("Split")
+            .setEmoji("✌")
+            .setStyle("SECONDARY")
+            .setDisabled(true)
+            .setCustomId("split-btn");
+
+        if (isDoubleDownable) doubledown.setStyle("SUCCESS").setDisabled(false);
+        if (isSplitable) split.setStyle("SUCCESS").setDisabled(false);
+
+        return new MessageActionRow().addComponents(stay, hit, doubledown, split);
+    }
+
+    private async handleWin(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
+        const { bet } = currGame;
+        await ctx.editReply({
+            content:
+                `${this.createHandString(currGame, WinningPlayer.PLAYER)}\n` +
+                `Congratulations! Here's your payout of ${bet * (doubleDowned ? 4 : 2)} :coin:!`,
+            components: []
+        });
+        return;
+    }
+
+    private async handleTie(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
+        const { bet } = currGame;
+        await ctx.editReply({
+            content:
+                `${this.createHandString(currGame, WinningPlayer.NONE)}\n` +
+                `Better luck next time, it's a tie! Here's your ${bet * (doubleDowned ? 2 : 1)} :coin: back.`,
+            components: []
+        });
+        return;
+    }
+
+    private async handleLoss(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
+        const { bet } = currGame;
+        await ctx.editReply({
+            content:
+                `${this.createHandString(currGame, WinningPlayer.HAMCHICK)}\n` +
+                `Better luck next time! We'll be taking that bet of ${bet * (doubleDowned ? 2 : 1)} :coin:`,
+            components: []
+        });
+        return;
     }
 
     private async createMessageCollectors(currGame: BlackjackGame, ctx: CommandInteraction | ButtonInteraction): Promise<void> {
@@ -107,17 +175,24 @@ export abstract class Blackjack {
             });
 
             playerCollector.on("collect", async (intr) => {
-                if (intr.isButton() && intr.customId === "hit-btn") {
-                    spectatorCollector.stop();
-                    await intr.deferUpdate();
-                    await this.hitPlayer(currGame, intr);
-                    return;
-                }
-                if (intr.isButton() && intr.customId === "stay-btn") {
-                    spectatorCollector.stop();
-                    await intr.deferUpdate();
-                    await this.hitAI(currGame, intr);
-                    return;
+                if (!intr.isButton()) return;
+                spectatorCollector.stop();
+                await intr.deferUpdate();
+                switch (intr.customId) {
+                    case "hit-btn":
+                        await this.hitPlayer(currGame, false, intr);
+                        break;
+                    case "stay-btn":
+                        await this.hitAI(currGame, false, intr);
+                        break;
+                    case "double-down-btn":
+                        console.log("Double Down");
+                        await this.hitPlayer(currGame, true, intr);
+                        break;
+                    case "split-btn":
+                        console.log("Split");
+                        await this.hitSplit(currGame, intr);
+                        break;
                 }
             });
 
@@ -131,7 +206,6 @@ export abstract class Blackjack {
                     }
                     return;
                 }
-                console.log(reason);
             });
 
             spectatorCollector.on("collect", async (intr) => {
@@ -144,40 +218,7 @@ export abstract class Blackjack {
         }
     }
 
-    private async handleWin(currGame: BlackjackGame, ctx: ButtonInteraction): Promise<void> {
-        const { bet } = currGame;
-        await ctx.editReply({
-            content:
-                `${this.createHandString(currGame, WinningPlayer.PLAYER)}\n` +
-                `Congratulations! Here's your payout of ${bet * 2} :coin:!`,
-            components: []
-        });
-        return;
-    }
-
-    private async handleTie(currGame: BlackjackGame, ctx: ButtonInteraction): Promise<void> {
-        const { bet } = currGame;
-        await ctx.editReply({
-            content:
-                `${this.createHandString(currGame, WinningPlayer.NONE)}\n` +
-                `Better luck next time, it's a tie! Here's your ${bet} :coin: back.`,
-            components: []
-        });
-        return;
-    }
-
-    private async handleLoss(currGame: BlackjackGame, ctx: ButtonInteraction): Promise<void> {
-        const { bet } = currGame;
-        await ctx.editReply({
-            content:
-                `${this.createHandString(currGame, WinningPlayer.HAMCHICK)}\n` +
-                `Better luck next time! We'll be taking that bet of ${bet} :coin:`,
-            components: []
-        });
-        return;
-    }
-
-    private async hitPlayer(currGame: BlackjackGame, ctx: ButtonInteraction): Promise<void> {
+    private async hitPlayer(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
         const { bet, playerHand } = currGame;
         playerHand.push(this.getRandomCard());
         const newGame = {
@@ -189,18 +230,18 @@ export abstract class Blackjack {
         // The player has busted since the minimum value of the player's hand is greater than 21
         if (playerValue[0] > 21) {
             // Since ctx has been deferred above, handleLoss will always be called with a deferred or replied ctx
-            await this.handleLoss(newGame, ctx);
+            await this.handleLoss(newGame, doubleDowned, ctx);
             return;
         }
 
-        // The player has a value of 21 one way or another
-        if (playerValue[0] === 21 || playerValue[1] === 21) {
+        // The player has a value of 21 or has double-downed their bet
+        if (playerValue[0] === 21 || playerValue[1] === 21 || doubleDowned) {
             // Since ctx has been deferred above, hitAI will always be called with a deferred or replied ctx
-            await this.hitAI(newGame, ctx);
+            await this.hitAI(newGame, true, ctx);
             return;
         }
 
-        const row = this.createButtons(ctx);
+        const row = this.createButtons({ isDoubleDownable: false, isSplitable: false });
         await ctx.editReply({
             content:
                 `Bet: ${bet} :coin:\n` +
@@ -212,7 +253,7 @@ export abstract class Blackjack {
         this.createMessageCollectors(newGame, ctx);
     }
 
-    private async hitAI(currGame: BlackjackGame, ctx: ButtonInteraction): Promise<void> {
+    private async hitAI(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
         // ctx will always be either deferred or replied
         const { dealerHand, playerHand } = currGame;
 
@@ -230,7 +271,7 @@ export abstract class Blackjack {
 
         // The dealer busts
         if (dealerHandValue[0] > 21) {
-            await this.handleWin(newGame, ctx);
+            await this.handleWin(newGame, doubleDowned, ctx);
         }
 
         // The dealer is forced to stay
@@ -239,40 +280,34 @@ export abstract class Blackjack {
             const bestPlayerValue = playerHandValue[1] <= 21 ? playerHandValue[1] : playerHandValue[0];
 
             if (bestDealerValue > bestPlayerValue) {
-                await this.handleLoss(newGame, ctx);
+                await this.handleLoss(newGame, doubleDowned, ctx);
                 return;
             }
             if (bestDealerValue === bestPlayerValue) {
-                await this.handleTie(newGame, ctx);
+                await this.handleTie(newGame, doubleDowned, ctx);
                 return;
             }
             if (bestDealerValue < bestPlayerValue) {
-                await this.handleWin(newGame, ctx);
+                await this.handleWin(newGame, doubleDowned, ctx);
                 return;
             }
         }
 
         // The dealer is forced to hit
         if (dealerHandValue[0] < 17 || dealerHandValue[1] < 17) {
-            // if (ctx.replied) {
             await ctx.editReply({
                 content:
                     `${this.createHandString(newGame, WinningPlayer.NONE)}\n` +
                     "My turn!",
                 components: []
             });
-            setTimeout(async () => await this.hitAI(newGame, ctx), 1000);
+            setTimeout(async () => await this.hitAI(newGame, doubleDowned, ctx), 1000);
             return;
-            // }
-            // await ctx.update({
-            //     content:
-            //         `${this.createHandString(newGame, WinningPlayer.NONE)}\n` +
-            //         "My turn!",
-            //     components: []
-            // });
-            // setTimeout(async () => await this.hitAI(newGame, ctx), 1000);
-            // return;
         }
+    }
+
+    private async hitSplit(currGame: BlackjackGame, ctx: ButtonInteraction): Promise<void> {
+
     }
 
     @Slash("blackjack", { description: "Play Blackjack 🃏" })
@@ -281,7 +316,6 @@ export abstract class Blackjack {
         bet: number,
         ctx: CommandInteraction): Promise<void> {
 
-        console.log(ctx.id);
         if (ctx.member === null || ctx.channel === null) {
             await ctx.reply("Is anyone there?");
             return;
@@ -296,18 +330,20 @@ export abstract class Blackjack {
 
         const { playerHand } = currGame;
         const playerValue = this.getValue(playerHand);
-        const row = this.createButtons(ctx);
-
         await ctx.deferReply();
 
         if (playerValue[1] === 21) {
             await ctx.editReply(
                 `${this.createHandString(currGame, WinningPlayer.PLAYER)}\n` +
-                `Incredible! That's a natural blackjack. Your payout is ${Math.floor(bet * 1.5)} :coin:!`
+                `Incredible! That's a natural blackjack. Your payout is ${Math.floor(bet * 2.5)} :coin:!`
             );
             return;
         }
 
+        const row = this.createButtons({
+            isDoubleDownable: this.checkDoubleDownable(playerValue),
+            isSplitable: this.checkSplittable(playerHand)
+        });
         await ctx.editReply({
             content:
                 `It's Blackjack Time! Bet: ${bet} :coin:\n` +
