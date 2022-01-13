@@ -1,16 +1,29 @@
-import { ButtonInteraction, CommandInteraction, Interaction, MessageActionRow, MessageButton, MessageComponentInteraction, User } from "discord.js";
+import { ButtonInteraction, CommandInteraction, Guild, GuildMember, MessageActionRow, MessageButton, MessageComponentInteraction, User } from "discord.js";
 import { Discord, Slash, SlashOption } from "discordx";
 
 type Suits = "♠" | "♣" | "♥" | "♦"
 type Value = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K" | "A"
 type Card = `\`${Value}${Suits}\`` | "`??`"
 
-type BlackjackGame = {
-    bet: number,
-    dealerHand: Card[],
-    playerHand: Card[],
-    player: User,
+enum HandState {
+    WON,
+    LOST,
+    TIE,
+    NATURAL,
+    ONGOING
+}
 
+type Hand = Card[]
+
+type BlackjackGame = {
+    bet: number[],
+    dealerHand: Hand,
+    dealerHandStatus: HandState,
+    player: GuildMember,
+    playerHands: Hand[],
+    playerHandStatus: HandState[],
+    doubleDowned: boolean[],
+    activeHandNumber: number
 }
 
 type ButtonOptions = {
@@ -18,14 +31,29 @@ type ButtonOptions = {
     isSplitable: boolean
 }
 
-enum WinningPlayer {
-    PLAYER,
-    HAMCHICK,
-    NONE
-}
-
 @Discord()
 export abstract class Blackjack {
+
+    private getHandValue(hand: Hand): number[] {
+        const faceValue = (x: Value, aceValue: number) => {
+            if (x === "J" || x === "Q" || x === "K") {
+                return 10;
+            } else if (x === "A") {
+                return aceValue;
+            } else {
+                return parseInt(x);
+            }
+        };
+
+        const cleanedHand = hand
+            .filter(x => x !== "`??`")
+            .map(x => x.replaceAll("`", ""))
+            .map(x => x.replaceAll(/[♠♣♦♥]/g, "") as Value);
+        return [
+            cleanedHand.map(x => faceValue(x, 1)).reduce((x, y) => x + y, 0),
+            cleanedHand.map(x => faceValue(x, 11)).reduce((x, y) => x + y, 0)
+        ];
+    }
 
     private getRandomCard(): Card {
         const suits: Suits[] = ["♠", "♣", "♥", "♦"];
@@ -33,65 +61,121 @@ export abstract class Blackjack {
         return `\`${vals[Math.floor(Math.random() * vals.length)]}${suits[Math.floor(Math.random() * suits.length)]}\``;
     }
 
-    private faceValue(x: Value, aceValue: 1 | 11): number {
-        if (x === "J" || x === "Q" || x === "K") {
-            return 10;
-        } else if (x === "A") {
-            return aceValue;
-        } else {
-            return parseInt(x);
+    private getActiveHand(currGame: BlackjackGame) {
+        return currGame.playerHands[currGame.activeHandNumber];
+    }
+
+    private setActiveHand(currGame: BlackjackGame, hand: Hand): BlackjackGame {
+        const { playerHands, activeHandNumber } = currGame;
+        playerHands[activeHandNumber] = hand;
+        return {
+            ...currGame,
+            playerHands: playerHands
+        };
+    }
+
+    private checkDoubleDownable(hand: Hand): boolean {
+        const handValue = this.getHandValue(hand);
+        return (hand.length === 2) && (handValue[0] >= 9) && (handValue[0] <= 11);
+    }
+
+    private checkSplittable(hand: Hand): boolean {
+        const cleanedHand = hand
+            .filter(x => x !== "`??`")
+            .map(x => x.replaceAll("`", ""))
+            .map(x => x.replaceAll(/[♠♣♦♥]/g, "") as Value);
+        return (hand.length === 2) && cleanedHand[0] === cleanedHand[1];
+    }
+
+    private dealerBusts(currGame: BlackjackGame): BlackjackGame {
+        return {
+            ...currGame,
+            playerHandStatus: currGame.playerHandStatus.map(x => x === HandState.ONGOING ? HandState.WON : x)
+        };
+    }
+
+    private dealerStays(currGame: BlackjackGame): BlackjackGame {
+        const { dealerHand, playerHands, playerHandStatus } = currGame;
+
+        const dealerHandValue = this.getHandValue(dealerHand);
+        const playerHandsValue = playerHands.map(this.getHandValue);
+        const bestDealerValue = dealerHandValue[1] <= 21 ? dealerHandValue[1] : dealerHandValue[0];
+        for (let i = 0; i < playerHands.length; i++) {
+            if (playerHandStatus[i] === HandState.ONGOING) {
+                const bestPlayerValue = playerHandsValue[i][1] <= 21 ? playerHandsValue[i][1] : playerHandsValue[i][0];
+                if (bestDealerValue < bestPlayerValue) {
+                    playerHandStatus[i] = HandState.WON;
+                    continue;
+                }
+                if (bestDealerValue === bestPlayerValue) {
+                    playerHandStatus[i] = HandState.TIE;
+                    continue;
+                }
+                if (bestDealerValue > bestPlayerValue) {
+                    playerHandStatus[i] = HandState.LOST;
+                    continue;
+                }
+            }
         }
+        return {
+            ...currGame,
+            playerHandStatus: playerHandStatus,
+        };
     }
 
-    private getValue(hand: Card[]): number[] {
+    private createPayout(currGame: BlackjackGame): string {
+        const { bet, playerHandStatus } = currGame;
+        const modifier = (status: HandState) => {
+            if (status === HandState.WON) return 2;
+            if (status === HandState.TIE) return 0;
+            if (status === HandState.LOST) return -1;
+            if (status === HandState.NATURAL) return 2.5;
+            return Infinity;
+        };
+        const payout = bet.map((b, i) => b * modifier(playerHandStatus[i])).reduce((x, y) => x + y);
 
-        const cleanedHand = hand
-            .filter(x => x !== "`??`")
-            .map(x => x.replaceAll("`", ""))
-            .map(x => x.replaceAll(/[♠♣♦♥]/g, "") as Value);
-        return [
-            cleanedHand.map(x => this.faceValue(x, 1)).reduce((x, y) => x + y, 0),
-            cleanedHand.map(x => this.faceValue(x, 11)).reduce((x, y) => x + y, 0)
-        ];
-    }
-
-    private checkDoubleDownable(hand: number[]): boolean {
-        return (hand[0] >= 9) && (hand[0] <= 11);
-    }
-
-    private checkSplittable(hand: Card[]): boolean {
-        const cleanedHand = hand
-            .filter(x => x !== "`??`")
-            .map(x => x.replaceAll("`", ""))
-            .map(x => x.replaceAll(/[♠♣♦♥]/g, "") as Value);
-        return this.faceValue(cleanedHand[0], 1) == this.faceValue(cleanedHand[1], 1);
+        if (payout === 0) {
+            return "You broke even!";
+        }
+        return `${payout > 0 ? "Congrats!" : "Better luck next time!"} You ${payout > 0 ? "won" : "lost"} ${Math.abs(payout)} :coin:`;
     }
 
     private createScoreString(score: number[]): string {
         return `${score[1] === 21 ? score[1] : score[0]}${score[1] < 21 && score[0] !== score[1] ? ` or ${score[1]}` : ""}`;
     }
 
-    private createHandString(currGame: BlackjackGame, winningPlayer: WinningPlayer): string {
-        const { player, dealerHand, playerHand } = currGame;
-        const dealerScore = this.createScoreString(this.getValue(dealerHand));
-        const playerScore = this.createScoreString(this.getValue(playerHand));
-        switch (winningPlayer) {
-            case WinningPlayer.NONE:
-                return (
-                    `HamChick's Hand: ${dealerHand.join(", ")} \t\t(${dealerScore})\n` +
-                    `<@${player?.id}>'s Hand: ${playerHand.join(", ")} \t\t(${playerScore})`
-                );
-            case WinningPlayer.HAMCHICK:
-                return (
-                    `**HamChick's Hand: ${dealerHand.join(", ")} \t\t(${dealerScore})\n**` +
-                    `<@${player?.id}>'s Hand: ${playerHand.join(", ")} \t\t(${playerScore})`
-                );
-            case WinningPlayer.PLAYER:
-                return (
-                    `HamChick's Hand: ${dealerHand.join(", ")} \t\t(${dealerScore})\n` +
-                    `**<@${player?.id}>'s Hand: ${playerHand.join(", ")} \t\t(${playerScore})**`
-                );
+    private createHandString(currGame: BlackjackGame): string {
+        const { bet, dealerHand, playerHands, player, playerHandStatus, activeHandNumber } = currGame;
+        const dealerScoreString = this.createScoreString(this.getHandValue(dealerHand));
+        let outputString =
+            `HamChick's Hand: ${dealerHand.join(", ")}` +
+            `\t\t (Value: ${dealerScoreString})\n`;
+        for (let i = 0; i < playerHands.length; i++) {
+            const playerScoreString = this.createScoreString(this.getHandValue(playerHands[i]));
+
+            outputString +=
+                `${i === activeHandNumber ? ":arrow_right: " : ""}<@${player.id}>'s Hand #${i + 1}: ` +
+                `${playerHands[i].join(", ")} \t\t` +
+                `(Value: ${playerScoreString}) \t\t (Bet: ${bet[i]})`;
+            switch (playerHandStatus[activeHandNumber]) {
+                case HandState.NATURAL:
+                    outputString += " 🏆\n";
+                    break;
+                case HandState.WON:
+                    outputString += " ✅\n";
+                    break;
+                case HandState.TIE:
+                    outputString += " 😐\n";
+                    break;
+                case HandState.LOST:
+                    outputString += " ❌\n";
+                    break;
+                case HandState.ONGOING:
+                    outputString += "\n";
+                    break;
+            }
         }
+        return outputString.trimEnd();
     }
 
     private createButtons(options: ButtonOptions): MessageActionRow {
@@ -125,39 +209,6 @@ export abstract class Blackjack {
         return new MessageActionRow().addComponents(stay, hit, doubledown, split);
     }
 
-    private async handleWin(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
-        const { bet } = currGame;
-        await ctx.editReply({
-            content:
-                `${this.createHandString(currGame, WinningPlayer.PLAYER)}\n` +
-                `Congratulations! Here's your payout of ${bet * (doubleDowned ? 4 : 2)} :coin:!`,
-            components: []
-        });
-        return;
-    }
-
-    private async handleTie(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
-        const { bet } = currGame;
-        await ctx.editReply({
-            content:
-                `${this.createHandString(currGame, WinningPlayer.NONE)}\n` +
-                `Better luck next time, it's a tie! Here's your ${bet * (doubleDowned ? 2 : 1)} :coin: back.`,
-            components: []
-        });
-        return;
-    }
-
-    private async handleLoss(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
-        const { bet } = currGame;
-        await ctx.editReply({
-            content:
-                `${this.createHandString(currGame, WinningPlayer.HAMCHICK)}\n` +
-                `Better luck next time! We'll be taking that bet of ${bet * (doubleDowned ? 2 : 1)} :coin:`,
-            components: []
-        });
-        return;
-    }
-
     private async createMessageCollectors(currGame: BlackjackGame, ctx: CommandInteraction | ButtonInteraction): Promise<void> {
         if (ctx.channel) {
             const { player } = currGame;
@@ -176,22 +227,37 @@ export abstract class Blackjack {
 
             playerCollector.on("collect", async (intr) => {
                 if (!intr.isButton()) return;
+                const { activeHandNumber, playerHands, bet, doubleDowned, playerHandStatus: handStatus } = currGame;
                 spectatorCollector.stop();
                 await intr.deferUpdate();
                 switch (intr.customId) {
                     case "hit-btn":
-                        await this.hitPlayer(currGame, false, intr);
+                        await this.hitPlayer(currGame, intr);
                         break;
                     case "stay-btn":
-                        await this.hitAI(currGame, false, intr);
+                        if (activeHandNumber === playerHands.length - 1) {
+                            await this.hitAI(currGame, intr);
+                            return;
+                        }
+                        currGame.activeHandNumber++;
+                        await this.hitPlayer(currGame, intr);
                         break;
                     case "double-down-btn":
-                        console.log("Double Down");
-                        await this.hitPlayer(currGame, true, intr);
+                        currGame.doubleDowned[activeHandNumber] = true;
+                        currGame.bet[activeHandNumber] *= 2;
+                        await this.hitPlayer(currGame, intr);
                         break;
                     case "split-btn":
-                        console.log("Split");
-                        await this.hitSplit(currGame, intr);
+                        playerHands[activeHandNumber] = [playerHands[activeHandNumber][0]];
+                        playerHands.push([...playerHands[activeHandNumber]]);
+                        bet.push(bet[activeHandNumber]);
+                        doubleDowned.push(false);
+                        handStatus.push(HandState.ONGOING);
+                        const newGame = {
+                            ...currGame,
+                            playerHands: playerHands
+                        };
+                        await this.hitPlayer(newGame, intr);
                         break;
                 }
             });
@@ -218,96 +284,100 @@ export abstract class Blackjack {
         }
     }
 
-    private async hitPlayer(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
-        const { bet, playerHand } = currGame;
-        playerHand.push(this.getRandomCard());
-        const newGame = {
-            ...currGame,
-            playerHand: playerHand
-        };
+    private async hitPlayer(currGame: BlackjackGame, ctx: CommandInteraction | ButtonInteraction): Promise<void> {
+        const { activeHandNumber, playerHands, doubleDowned, playerHandStatus } = currGame;
+        const activeHand = this.getActiveHand(currGame);
+        activeHand.push(this.getRandomCard());
+        const newGame = this.setActiveHand(currGame, activeHand);
 
-        const playerValue = this.getValue(playerHand);
-        // The player has busted since the minimum value of the player's hand is greater than 21
-        if (playerValue[0] > 21) {
-            // Since ctx has been deferred above, handleLoss will always be called with a deferred or replied ctx
-            await this.handleLoss(newGame, doubleDowned, ctx);
-            return;
+        const activeHandValue = this.getHandValue(activeHand);
+
+        // If the player busts on this hand, gets a value of 21, or doubledowned => move to next available hand
+        if (activeHandValue[0] >= 21 || activeHandValue[1] === 21 || doubleDowned[activeHandNumber]) {
+            if (activeHandValue[0] > 21) {
+                playerHandStatus[activeHandNumber] = HandState.LOST;
+            }
+            if (activeHandValue[1] === 21 && activeHand.length === 2) {
+                playerHandStatus[activeHandNumber] = HandState.NATURAL;
+            }
+
+            // If this was the last hand the player can play on it's the dealer's turn
+            if (activeHandNumber === playerHands.length - 1) {
+                await this.hitAI(newGame, ctx);
+                return;
+            }
+
+            // Otherwise we play the next available hand
+            newGame.activeHandNumber++;
+            await this.hitPlayer(newGame, ctx);
         }
 
-        // The player has a value of 21 or has double-downed their bet
-        if (playerValue[0] === 21 || playerValue[1] === 21 || doubleDowned) {
-            // Since ctx has been deferred above, hitAI will always be called with a deferred or replied ctx
-            await this.hitAI(newGame, true, ctx);
-            return;
-        }
-
-        const row = this.createButtons({ isDoubleDownable: false, isSplitable: false });
+        const row = this.createButtons({
+            isDoubleDownable: this.checkDoubleDownable(activeHand),
+            isSplitable: this.checkSplittable(activeHand)
+        });
         await ctx.editReply({
-            content:
-                `Bet: ${bet} :coin:\n` +
-                `${this.createHandString(newGame, WinningPlayer.NONE)}\n` +
-                "Getting Closer!",
+            content: this.createHandString(currGame),
             components: [row]
         });
 
         this.createMessageCollectors(newGame, ctx);
     }
 
-    private async hitAI(currGame: BlackjackGame, doubleDowned: boolean, ctx: ButtonInteraction): Promise<void> {
+    private async hitAI(currGame: BlackjackGame, ctx: CommandInteraction | ButtonInteraction): Promise<void> {
         // ctx will always be either deferred or replied
-        const { dealerHand, playerHand } = currGame;
+        const { dealerHand, playerHandStatus } = currGame;
+
+        if (playerHandStatus.every(x => x === HandState.LOST || x === HandState.NATURAL)) {
+            await ctx.editReply({
+                content:
+                    `${this.createHandString(currGame)}\n${this.createPayout(currGame)}`,
+                components: []
+            });
+            return;
+        }
 
         if (dealerHand[dealerHand.length - 1] === "`??`") {
             dealerHand.pop();
         }
+
         dealerHand.push(this.getRandomCard());
         const newGame = {
             ...currGame,
             dealerHand: dealerHand
         };
 
-        const dealerHandValue = this.getValue(dealerHand);
-        const playerHandValue = this.getValue(playerHand);
+        const dealerHandValue = this.getHandValue(dealerHand);
 
         // The dealer busts
         if (dealerHandValue[0] > 21) {
-            await this.handleWin(newGame, doubleDowned, ctx);
+            const bustedGame = this.dealerBusts(newGame);
+            await ctx.editReply({
+                content: `${this.createHandString(bustedGame)}\n${this.createPayout(bustedGame)}`,
+                components: []
+            });
         }
 
         // The dealer is forced to stay
         if ((17 <= dealerHandValue[0] && dealerHandValue[0] <= 21) || (17 <= dealerHandValue[1] && dealerHandValue[1] <= 21)) {
-            const bestDealerValue = dealerHandValue[1] <= 21 ? dealerHandValue[1] : dealerHandValue[0];
-            const bestPlayerValue = playerHandValue[1] <= 21 ? playerHandValue[1] : playerHandValue[0];
-
-            if (bestDealerValue > bestPlayerValue) {
-                await this.handleLoss(newGame, doubleDowned, ctx);
-                return;
-            }
-            if (bestDealerValue === bestPlayerValue) {
-                await this.handleTie(newGame, doubleDowned, ctx);
-                return;
-            }
-            if (bestDealerValue < bestPlayerValue) {
-                await this.handleWin(newGame, doubleDowned, ctx);
-                return;
-            }
+            const stayedGame = this.dealerStays(newGame);
+            await ctx.editReply({
+                content: `${this.createHandString(stayedGame)}\n${this.createPayout(stayedGame)}`,
+                components: []
+            });
         }
 
         // The dealer is forced to hit
         if (dealerHandValue[0] < 17 || dealerHandValue[1] < 17) {
             await ctx.editReply({
                 content:
-                    `${this.createHandString(newGame, WinningPlayer.NONE)}\n` +
+                    `${this.createHandString(newGame)}\n` +
                     "My turn!",
                 components: []
             });
-            setTimeout(async () => await this.hitAI(newGame, doubleDowned, ctx), 1000);
+            setTimeout(async () => await this.hitAI(newGame, ctx), 1000);
             return;
         }
-    }
-
-    private async hitSplit(currGame: BlackjackGame, ctx: ButtonInteraction): Promise<void> {
-
     }
 
     @Slash("blackjack", { description: "Play Blackjack 🃏" })
@@ -321,36 +391,17 @@ export abstract class Blackjack {
             return;
         }
 
-        const currGame: BlackjackGame = {
-            bet: bet,
-            player: ctx.member.user as User,
-            dealerHand: [this.getRandomCard(), "`??`"],
-            playerHand: [this.getRandomCard(), this.getRandomCard()]
-        };
-
-        const { playerHand } = currGame;
-        const playerValue = this.getValue(playerHand);
         await ctx.deferReply();
-
-        if (playerValue[1] === 21) {
-            await ctx.editReply(
-                `${this.createHandString(currGame, WinningPlayer.PLAYER)}\n` +
-                `Incredible! That's a natural blackjack. Your payout is ${Math.floor(bet * 2.5)} :coin:!`
-            );
-            return;
-        }
-
-        const row = this.createButtons({
-            isDoubleDownable: this.checkDoubleDownable(playerValue),
-            isSplitable: this.checkSplittable(playerHand)
-        });
-        await ctx.editReply({
-            content:
-                `It's Blackjack Time! Bet: ${bet} :coin:\n` +
-                `${this.createHandString(currGame, WinningPlayer.NONE)}`,
-            components: [row]
-        });
-
-        this.createMessageCollectors(currGame, ctx);
+        const currGame: BlackjackGame = {
+            bet: [bet],
+            dealerHand: [this.getRandomCard(), "`??`"],
+            dealerHandStatus: HandState.ONGOING,
+            player: ctx.member as GuildMember,
+            playerHands: [[this.getRandomCard()]],
+            playerHandStatus: [HandState.ONGOING],
+            doubleDowned: [false],
+            activeHandNumber: 0,
+        };
+        await this.hitPlayer(currGame, ctx);
     }
 }
